@@ -424,7 +424,7 @@
                         optimalErrorResult = result;
                     }
 
-                    if (Score < minScore) {
+                    if (Score < minScore && isWithinTolerance) {
                         minScore = Score;
                         optimalScoreResult = result;
                     }
@@ -484,8 +484,8 @@
                     // ハイライト: 3つの最適解のいずれか
                     let highlightClass = '';
                     if (result === optErr) highlightClass = 'bg-red-100 font-bold';
-                    if (result === optScore) highlightClass = 'bg-green-100 font-bold';
                     if (result === optDay) highlightClass = 'bg-yellow-100 font-bold';
+                    if (result === optScore) highlightClass = 'bg-green-100 font-bold';
                     if (highlightClass) row.className = highlightClass;
 
                     // 試行日数
@@ -528,6 +528,5 @@
         });
     </script>
 </body>
-
 
 </html>
