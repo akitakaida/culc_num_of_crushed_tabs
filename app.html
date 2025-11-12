@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>錠剤粉砕の最適日数計算</title>
+    <!-- Tailwind CSSの読み込み -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* カスタムスタイル */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f9fb;
+            color: #1e293b;
+            min-height: 100vh;
+        }
+
+        .container-card {
+            max-width: 95%;
+            margin: 1.5rem auto;
+            padding: 1.5rem;
+            background-color: #ffffff;
+            border-radius: 1rem;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 5px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+
+        .input-group label {
+            font-weight: 500;
+            color: #334155;
+            display: block;
+            margin-bottom: 0.25rem;
+        }
+
+        .input-group input[type="number"] {
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            border: 1px solid #cbd5e1;
+            width: 100%;
+            transition: border-color 0.15s ease-in-out;
+        }
+
+        .input-group input[type="number"]:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
+        }
+
+        .header {
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        th,
+        td {
+            padding: 0.5rem 0.5rem;
+            text-align: center;
+            white-space: nowrap;
+        }
+
+        th {
+            background-color: #eef2ff;
+            color: #4338ca;
+            font-weight: 600;
+        }
+
+        .table-container {
+            overflow-x: auto;
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+            margin-top: 1rem;
+        }
+
+        .error-message {
+            background-color: #fee2e2;
+            color: #ef4444;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        .sticky-header th {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .optimal-card {
+            padding: 1rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .slider-container {
+            padding: 0.5rem 0;
+            position: relative;
+        }
+
+        .slider-label-w {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #10b981;
+            display: inline-block;
+            min-width: 40px;
+        }
+
+        /* スライダーのカスタムスタイル */
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 10px;
+            background: linear-gradient(to right, #f87171, #facc15, #10b981);
+            /* 日数重視(赤) -> 評価バランス(黄) -> 誤差重視(緑) */
+            border-radius: 5px;
+            margin: 10px 0;
+            cursor: pointer;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #4f46e5;
+            border-radius: 50%;
+            border: 3px solid #ffffff;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.3);
+        }
+
+        .slider-axis {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.875rem;
+            color: #64748b;
+            margin-top: -0.5rem;
+        }
+    </style>
+</head>
+
+<body class="p-4 sm:p-8">
+
+    <div class="container-card">
+        <header class="header">
+            <h1 class="text-3xl font-extrabold text-indigo-700 mb-2">錠剤粉砕の最適日数計算</h1>
+            <p class="text-gray-500 text-sm">錠数、処方日数を入力し、誤差・日数・評価関数が最小となる解を比較します。</p>
+        </header>
+
+        <form id="calculationForm" class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+            <!-- 基本設定 (常に表示) -->
+            <div class="input-group col-span-2 md:col-span-2">
+                <label for="pillsPerDose">1包あたりの錠数</label>
+                <!-- 1包あたりの錠数デフォルト値を 0.2 に変更 -->
+                <input type="number" id="pillsPerDose" step="0.01" min="0.01" required placeholder="例: 0.2" value="0.2">
+            </div>
+            <div class="input-group col-span-2 md:col-span-1">
+                <!-- ラベルを「処方日数」に変更 -->
+                <label for="requiredDays">処方日数</label>
+                <!-- デフォルト値を 28 に変更 -->
+                <input type="number" id="requiredDays" step="1" min="1" required placeholder="例: 28" value="28">
+            </div>
+
+            <!-- 詳細設定トグルボタン -->
+            <button type="button" id="toggleAdvanced"
+                class="col-span-2 md:col-span-2 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-xl transition duration-150 shadow-sm self-end">
+                詳細設定を表示
+            </button>
+
+            <!-- 詳細設定エリア (初期非表示) -->
+            <div id="advancedSettings"
+                class="col-span-2 md:col-span-5 grid grid-cols-2 md:grid-cols-5 gap-4 border-t border-gray-200 pt-4 mt-2 hidden">
+
+                <div class="input-group col-span-1">
+                    <label for="maxDays">計算上限日数</label>
+                    <input type="number" id="maxDays" step="1" min="1" required placeholder="例: 100" value="100">
+                </div>
+                <div class="input-group col-span-1">
+                    <label for="tolerance">許容誤差 (%)</label>
+                    <!-- 許容誤差のデフォルト値を 2.0 に変更 -->
+                    <input type="number" id="tolerance" step="0.1" min="0.1" required placeholder="例: 2.0" value="2.0">
+                </div>
+
+                <!-- レイアウト調整 -->
+                <div class="col-span-3 hidden md:block"></div>
+
+                <!-- 重さ w スライダーセクション -->
+                <div class="input-group col-span-2 md:col-span-5 border p-4 rounded-xl bg-gray-50">
+                    <!-- 初期値を 0.20 に変更 -->
+                    <label>評価関数 重み w: <span id="weightWDisplay" class="slider-label-w">0.20</span></label>
+                    <div class="slider-container">
+                        <!-- 初期値を 0.20 に変更 -->
+                        <input type="range" id="weightWSlider" min="0.00" max="1.00" step="0.01" value="0.20">
+                        <div class="slider-axis">
+                            <span class="text-red-500 font-bold">0.00 (日数重視)</span>
+                            <span class="text-green-600 font-bold">1.00 (誤差重視)</span>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-2">※ w: 誤差の影響度 / (1-w): 日数の影響度</p>
+                        <p class="text-xs text-gray-500 mt-2">※ 評価関数: w x (誤差/許容誤差 x 100) + (1-w) x (日数 - 処方日数)</p>
+                    </div>
+                </div>
+            </div>
+
+            <button type="submit"
+                class="col-span-2 md:col-span-5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-xl transition duration-150 shadow-md hover:shadow-lg">
+                計算を実行
+            </button>
+        </form>
+
+        <div id="errorMessage" class="error-message hidden" role="alert"></div>
+
+        <!-- 最適な結果の表示エリア -->
+        <!-- 初期状態では hidden になっていることを確認 -->
+        <section id="optimalResultsSection" class="mt-8 hidden">
+            <h2 class="text-2xl font-bold text-gray-700 mb-4">最適な解答の比較</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+                <!-- 1. 評価関数最小の解答 (最も推奨される回答) を左端に配置 -->
+                <div id="optimalScoreCard" class="optimal-card bg-green-50 border-2 border-green-500">
+                    <h3 class="text-xl font-bold text-green-700 mb-2">最も推奨される回答</h3>
+                    <p class="text-sm text-green-600 mb-3">設定した重みwで、誤差と日数のバランスが最も優れています。</p>
+                    <!-- 表示項目を修正 -->
+                    <div class="space-y-1 text-gray-700">
+                        <p>粉砕錠数: <span id="optScore_Pills" class="font-extrabold text-lg"></span></p>
+                        <p>分包日数: <span id="optScore_Days" class="font-extrabold text-lg"></span></p>
+                        <p>廃棄日数: <span id="optScore_WasteDays" class="font-extrabold"></span></p>
+                        <p>1包当たりの錠数: <span id="optScore_Dose" class="font-extrabold"></span></p>
+                        <p>誤差: <span id="optScore_Error" class="font-extrabold"></span></p>
+                        <p>評価値: <span id="optScore_Score" class="font-extrabold"></span></p>
+                    </div>
+                </div>
+
+                <!-- 2. 誤差最小の解答 (中央に配置) -->
+                <div id="optimalErrorCard" class="optimal-card bg-red-50 border-2 border-red-500">
+                    <h3 class="text-xl font-bold text-red-700 mb-2">最小誤差の回答</h3>
+                    <p class="text-sm text-red-600 mb-3">誤差を最も小さく抑えることができます。</p>
+                    <!-- 表示項目を修正 -->
+                    <div class="space-y-1 text-gray-700">
+                        <p>粉砕錠数: <span id="optErr_Pills" class="font-extrabold text-lg"></span></p>
+                        <p>分包日数: <span id="optErr_Days" class="font-extrabold text-lg"></span></p>
+                        <p>廃棄日数: <span id="optErr_WasteDays" class="font-extrabold"></span></p>
+                        <p>1包当たりの錠数: <span id="optErr_Dose" class="font-extrabold"></span></p>
+                        <p>誤差: <span id="optErr_Error" class="font-extrabold"></span></p>
+                        <p>評価値: <span id="optErr_Score" class="font-extrabold"></span></p>
+                    </div>
+                </div>
+
+                <!-- 3. 日数最小の解答 (右端に配置) -->
+                <div id="optimalDaysCard" class="optimal-card bg-yellow-50 border-2 border-yellow-500">
+                    <h3 class="text-xl font-bold text-yellow-700 mb-2">最小日数の回答</h3>
+                    <p class="text-sm text-yellow-600 mb-3">許容誤差内で、最も廃棄を減らせます。</p>
+                    <!-- 表示項目を修正 -->
+                    <div class="space-y-1 text-gray-700">
+                        <p>粉砕錠数: <span id="optDay_Pills" class="font-extrabold text-lg"></span></p>
+                        <p>分包日数: <span id="optDay_Days" class="font-extrabold text-lg"></span></p>
+                        <p>廃棄日数: <span id="optDay_WasteDays" class="font-extrabold"></span></p>
+                        <p>1包当たりの錠数: <span id="optDay_Dose" class="font-extrabold"></span></p>
+                        <p>誤差: <span id="optDay_Error" class="font-extrabold"></span></p>
+                        <p>評価値: <span id="optDay_Score" class="font-extrabold"></span></p>
+                    </div>
+                    <p id="optDay_Warning" class="text-xs mt-2 text-red-500 font-bold hidden">※ 許容誤差内の解答がありません</p>
+                </div>
+            </div>
+        </section>
+
+
+        <!-- 計算結果のテーブル -->
+        <!-- 初期状態では hidden になっていることを確認 -->
+        <div id="resultsSection" class="mt-8 hidden">
+            <h2 class="text-2xl font-bold text-gray-700 mb-4">全計算結果</h2>
+            <div class="table-container">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="sticky-header">
+                        <tr>
+                            <th class="rounded-tl-lg">試行日数</th>
+                            <th>目標総錠数</th>
+                            <th>調整総錠数<br>(0.25刻み)</th>
+                            <th>調整1日量</th>
+                            <th>誤差 (%)</th>
+                            <!-- wの初期値を 0.20 に更新 -->
+                            <th>評価関数<br>(w=<span id="currentW">0.20</span>)</th>
+                            <th class="rounded-tr-lg">許容誤差内</th>
+                        </tr>
+                    </thead>
+                    <tbody id="resultsTableBody" class="bg-white divide-y divide-gray-100">
+                        <!-- 結果がここに追加される -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const form = document.getElementById('calculationForm');
+            const errorMessage = document.getElementById('errorMessage');
+            const resultsTableBody = document.getElementById('resultsTableBody');
+            const resultsSection = document.getElementById('resultsSection');
+            const optimalResultsSection = document.getElementById('optimalResultsSection');
+
+            const weightWSlider = document.getElementById('weightWSlider');
+            const weightWDisplay = document.getElementById('weightWDisplay');
+            const currentWDisplay = document.getElementById('currentW');
+
+            const D_required_input = document.getElementById('requiredDays'); // 処方日数のInput要素を取得
+
+            const advancedSettings = document.getElementById('advancedSettings');
+            const toggleAdvancedButton = document.getElementById('toggleAdvanced');
+
+            // --- 詳細設定の表示/非表示制御 ---
+            toggleAdvancedButton.addEventListener('click', () => {
+                const isHidden = advancedSettings.classList.toggle('hidden');
+                toggleAdvancedButton.textContent = isHidden ? '詳細設定を表示' : '詳細設定を非表示';
+                toggleAdvancedButton.classList.toggle('bg-gray-200');
+                toggleAdvancedButton.classList.toggle('bg-indigo-100');
+            });
+
+            // スライダーの値変更をリアルタイムで表示
+            weightWSlider.addEventListener('input', () => {
+                weightWDisplay.textContent = parseFloat(weightWSlider.value).toFixed(2);
+                currentWDisplay.textContent = parseFloat(weightWSlider.value).toFixed(2);
+            });
+
+            form.addEventListener('submit', (event) => {
+                event.preventDefault();
+                calculateOptimalDays();
+            });
+
+            function showMessage(message, isError = false) {
+                errorMessage.textContent = message;
+                errorMessage.classList.remove('hidden', 'error-message', 'bg-yellow-100', 'text-yellow-800');
+                if (isError) {
+                    errorMessage.classList.add('error-message'); // 赤色エラー
+                } else {
+                    errorMessage.classList.add('bg-yellow-100', 'text-yellow-800'); // 黄色警告
+                }
+                errorMessage.classList.remove('hidden');
+            }
+
+            function hideMessage() {
+                errorMessage.classList.add('hidden');
+            }
+
+            function calculateOptimalDays() {
+                hideMessage();
+
+                // 1. 入力値の取得と検証
+                const P_target = parseFloat(document.getElementById('pillsPerDose').value);
+                const D_required = parseInt(D_required_input.value, 10);
+                // 詳細設定から値を取得
+                const D_max = parseInt(document.getElementById('maxDays').value, 10);
+                const E_tolerance = parseFloat(document.getElementById('tolerance').value);
+                const W_weight = parseFloat(weightWSlider.value); // スライダーから値を取得
+
+                if (isNaN(P_target) || P_target <= 0) {
+                    showMessage('「1包あたりの錠数」は0より大きい数値を入力してください。', true);
+                    return;
+                }
+                if (isNaN(D_required) || D_required < 1) {
+                    showMessage('「処方日数」は1以上の整数を入力してください。', true);
+                    return;
+                }
+                if (isNaN(D_max) || D_max < D_required || D_max > 500) {
+                    showMessage(`「計算上限日数」は「処方日数」以上で500以下の整数を入力してください。`, true);
+                    return;
+                }
+                if (isNaN(E_tolerance) || E_tolerance <= 0) {
+                    showMessage('「許容される誤差 (%)」は0より大きい数値を入力してください。評価関数の計算に必要です。', true);
+                    return;
+                }
+
+                currentWDisplay.textContent = W_weight.toFixed(2);
+
+                let minError = Infinity;
+                let minScore = Infinity;
+                let minDaysWithinTolerance = Infinity;
+
+                let optimalErrorResult = null;
+                let optimalScoreResult = null;
+                let optimalDaysWithinToleranceResult = null;
+
+                const results = [];
+                let calculationStopped = false; // 計算が途中で終了したかを示すフラグ
+
+                // 2. 計算ループ
+                for (let D_trial = D_required; D_trial <= D_max; D_trial++) {
+                    const T_target = P_target * D_trial;
+                    // 0.25刻みで切り上げ
+                    const T_adjusted = Math.ceil(T_target / 0.25) * 0.25;
+                    const P_adjusted = T_adjusted / D_trial;
+                    // 誤差 (%)
+                    const E_percent = ((P_adjusted - P_target) / P_target) * 100;
+
+                    // 誤差が0%の場合、計算を終了する
+                    if (Math.abs(E_percent) < 0.001) { // 浮動小数点誤差を考慮して非常に小さい値と比較
+                        calculationStopped = true;
+                    }
+
+                    const isWithinTolerance = E_percent <= E_tolerance;
+
+                    // 評価関数 Score の計算
+                    // Score = w * (E_percent / E_tolerance * 100) + (1 - w) * (D_trial - D_required)
+                    const scoreErrorComponent = (E_percent / E_tolerance) * 100;
+                    const scoreDaysComponent = (D_trial - D_required);
+                    const Score = (W_weight * scoreErrorComponent) + ((1 - W_weight) * scoreDaysComponent);
+
+                    const result = {
+                        D_trial: D_trial,
+                        T_target: T_target,
+                        T_adjusted: T_adjusted,
+                        P_adjusted: P_adjusted,
+                        E_percent: E_percent,
+                        Score: Score,
+                        isWithinTolerance: isWithinTolerance
+                    };
+
+                    results.push(result);
+
+                    // 3. 最適解の探索
+                    if (E_percent < minError) {
+                        minError = E_percent;
+                        optimalErrorResult = result;
+                    }
+
+                    if (Score < minScore) {
+                        minScore = Score;
+                        optimalScoreResult = result;
+                    }
+
+                    if (isWithinTolerance && D_trial < minDaysWithinTolerance) {
+                        minDaysWithinTolerance = D_trial;
+                        optimalDaysWithinToleranceResult = result;
+                    }
+
+                    // 誤差が0%の場合、ここでループを抜ける
+                    if (calculationStopped) {
+                        showMessage(`誤差0%の解（分包日数: ${D_trial}日）が見つかったため、計算を終了しました。`, false);
+                        break;
+                    }
+                }
+
+                displayResults(results, optimalErrorResult, optimalScoreResult, optimalDaysWithinToleranceResult, D_required);
+            }
+
+            // 4. 結果の表示
+            function displayResults(results, optErr, optScore, optDay, D_required) {
+                resultsTableBody.innerHTML = '';
+                optimalResultsSection.classList.remove('hidden');
+                resultsSection.classList.remove('hidden');
+
+                // 最適解情報の更新
+                // updateOptimalCardに関数内で取得したD_requiredを渡す
+                updateOptimalCard(optScore, 'optScore', D_required);
+                updateOptimalCard(optErr, 'optErr', D_required);
+
+                // 最小日数の解答の注意書きとカードの更新
+                const optDayWarning = document.getElementById('optDay_Warning');
+                const optDayCard = document.getElementById('optimalDaysCard');
+                if (!optDay) {
+                    optDayWarning.classList.remove('hidden');
+                    optDayCard.classList.remove('border-yellow-500');
+                    optDayCard.classList.add('border-gray-300', 'opacity-70');
+                    // N/A の表示項目も新しい項目に合わせる
+                    document.getElementById('optDay_Pills').textContent = '-';
+                    document.getElementById('optDay_Days').textContent = 'N/A';
+                    document.getElementById('optDay_WasteDays').textContent = '-';
+                    document.getElementById('optDay_Dose').textContent = '-';
+                    document.getElementById('optDay_Error').textContent = '-';
+                    document.getElementById('optDay_Score').textContent = '-';
+                } else {
+                    optDayWarning.classList.add('hidden');
+                    optDayCard.classList.remove('border-gray-300', 'opacity-70');
+                    optDayCard.classList.add('border-yellow-500');
+                    updateOptimalCard(optDay, 'optDay', D_required);
+                }
+
+                // テーブルに行を追加
+                results.forEach(result => {
+                    const row = resultsTableBody.insertRow();
+                    row.className = result.D_trial % 2 === 0 ? 'bg-white hover:bg-gray-100' : 'bg-gray-50 hover:bg-gray-100';
+
+                    // ハイライト: 3つの最適解のいずれか
+                    let highlightClass = '';
+                    if (result === optErr) highlightClass = 'bg-red-100 font-bold';
+                    if (result === optScore) highlightClass = 'bg-green-100 font-bold';
+                    if (result === optDay) highlightClass = 'bg-yellow-100 font-bold';
+                    if (highlightClass) row.className = highlightClass;
+
+                    // 試行日数
+                    row.insertCell().textContent = result.D_trial;
+                    // 目標総錠数
+                    row.insertCell().textContent = result.T_target.toFixed(3);
+                    // 調整総錠数 (0.25刻み)
+                    row.insertCell().textContent = result.T_adjusted.toFixed(2);
+                    // 調整1日量
+                    row.insertCell().textContent = result.P_adjusted.toFixed(3);
+                    // 誤差 (%)
+                    const errorCell = row.insertCell();
+                    errorCell.textContent = `${result.E_percent.toFixed(2)}%`;
+                    errorCell.classList.add(result.isWithinTolerance ? 'text-green-600' : 'text-red-600');
+
+                    // 評価関数
+                    row.insertCell().textContent = result.Score.toFixed(2);
+
+                    // 許容誤差内
+                    const toleranceCell = row.insertCell();
+                    toleranceCell.textContent = result.isWithinTolerance ? 'OK' : 'NG';
+                    toleranceCell.classList.add(result.isWithinTolerance ? 'text-green-600' : 'text-red-600', 'font-bold');
+                });
+            }
+
+            function updateOptimalCard(result, prefix, D_required) {
+                if (!result) return;
+
+                // 処方日数 (D_required) を使って廃棄日数を計算
+                const wasteDays = result.D_trial - D_required;
+
+                // 新しい項目に合わせて表示を更新
+                document.getElementById(`${prefix}_Pills`).textContent = `${result.T_adjusted.toFixed(2)}錠`; // 粉砕錠数 (T_adjusted)
+                document.getElementById(`${prefix}_Days`).textContent = `${result.D_trial}日`; // 分包日数 (D_trial)
+                document.getElementById(`${prefix}_WasteDays`).textContent = `${wasteDays}日`; // 廃棄日数
+                document.getElementById(`${prefix}_Dose`).textContent = `${result.P_adjusted.toFixed(3)}錠`; // 1包当たりの錠数 (P_adjusted)
+                document.getElementById(`${prefix}_Error`).textContent = `${result.E_percent.toFixed(2)}%`; // 誤差
+                document.getElementById(`${prefix}_Score`).textContent = result.Score.toFixed(2); // 評価値
+            }
+        });
+    </script>
+</body>
+
+</html>
