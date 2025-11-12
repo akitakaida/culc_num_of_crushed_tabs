@@ -153,7 +153,7 @@
             <div class="input-group col-span-2 md:col-span-2">
                 <label for="pillsPerDose">1包あたりの錠数</label>
                 <!-- 1包あたりの錠数デフォルト値を 0.2 に変更 -->
-                <input type="number" id="pillsPerDose" step="0.01" min="0.01" required placeholder="例: 0.1">
+                <input type="number" id="pillsPerDose" step="0.001" min="0.001" required placeholder="例: 0.1">
             </div>
             <div class="input-group col-span-2 md:col-span-1">
                 <!-- ラベルを「処方日数」に変更 -->
@@ -217,7 +217,7 @@
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
 
                 <!-- 1. 評価関数最小の解答 (最も推奨される回答) を左端に配置 -->
-                <div id="optimalScoreCard" class="optimal-card bg-green-50 border-2 border-green-500">
+                <div id="optScore_Card" class="optimal-card bg-green-50 border-2 border-green-500">
                     <h3 class="text-xl font-bold text-green-700 mb-2">最も推奨される回答</h3>
                     <p class="text-sm text-green-600 mb-3">設定した重みwで、誤差と日数のバランスが最も優れています。</p>
                     <!-- 表示項目を修正 -->
@@ -232,7 +232,7 @@
                 </div>
 
                 <!-- 2. 誤差最小の解答 (中央に配置) -->
-                <div id="optimalErrorCard" class="optimal-card bg-red-50 border-2 border-red-500">
+                <div id="optErr_Card" class="optimal-card bg-red-50 border-2 border-red-500">
                     <h3 class="text-xl font-bold text-red-700 mb-2">最小誤差の回答</h3>
                     <p class="text-sm text-red-600 mb-3">誤差を最も小さく抑えることができます。</p>
                     <!-- 表示項目を修正 -->
@@ -247,7 +247,7 @@
                 </div>
 
                 <!-- 3. 日数最小の解答 (右端に配置) -->
-                <div id="optimalDaysCard" class="optimal-card bg-yellow-50 border-2 border-yellow-500">
+                <div id="optDay_Card" class="optimal-card bg-yellow-50 border-2 border-yellow-500">
                     <h3 class="text-xl font-bold text-yellow-700 mb-2">最小日数の回答</h3>
                     <p class="text-sm text-yellow-600 mb-3">許容誤差内で、最も廃棄を減らせます。</p>
                     <!-- 表示項目を修正 -->
@@ -259,7 +259,6 @@
                         <p>誤差: <span id="optDay_Error" class="font-extrabold"></span></p>
                         <p>評価値: <span id="optDay_Score" class="font-extrabold"></span></p>
                     </div>
-                    <p id="optDay_Warning" class="text-xs mt-2 text-red-500 font-bold hidden">※ 許容誤差内の解答がありません</p>
                 </div>
             </div>
         </section>
@@ -450,29 +449,20 @@
                 optimalResultsSection.classList.remove('hidden');
                 resultsSection.classList.remove('hidden');
 
+                if(!optDay){
+                    showMessage('許容誤差内の解答がありません', true)
+                }
+
                 // 最適解情報の更新
                 // updateOptimalCardに関数内で取得したD_requiredを渡す
-                updateOptimalCard(optScore, 'optScore', D_required);
-                updateOptimalCard(optErr, 'optErr', D_required);
-
                 // 最小日数の解答の注意書きとカードの更新
-                const optDayWarning = document.getElementById('optDay_Warning');
-                const optDayCard = document.getElementById('optimalDaysCard');
                 if (!optDay) {
-                    optDayWarning.classList.remove('hidden');
-                    optDayCard.classList.remove('border-yellow-500');
-                    optDayCard.classList.add('border-gray-300', 'opacity-70');
-                    // N/A の表示項目も新しい項目に合わせる
-                    document.getElementById('optDay_Pills').textContent = '-';
-                    document.getElementById('optDay_Days').textContent = 'N/A';
-                    document.getElementById('optDay_WasteDays').textContent = '-';
-                    document.getElementById('optDay_Dose').textContent = '-';
-                    document.getElementById('optDay_Error').textContent = '-';
-                    document.getElementById('optDay_Score').textContent = '-';
+                    updateOptimalCard(optScore, 'optScore', D_required, true);
+                    updateOptimalCard(optErr, 'optErr', D_required, true);
+                    updateOptimalCard(optDay, 'optDay', D_required, true);
                 } else {
-                    optDayWarning.classList.add('hidden');
-                    optDayCard.classList.remove('border-gray-300', 'opacity-70');
-                    optDayCard.classList.add('border-yellow-500');
+                    updateOptimalCard(optScore, 'optScore', D_required);
+                    updateOptimalCard(optErr, 'optErr', D_required);
                     updateOptimalCard(optDay, 'optDay', D_required);
                 }
 
@@ -511,19 +501,30 @@
                 });
             }
 
-            function updateOptimalCard(result, prefix, D_required) {
-                if (!result) return;
+            function updateOptimalCard(result, prefix, D_required, isError=false) {
+                if (isError) {
+                    console.log(result, prefix, D_required, isError)
+                    document.getElementById(`${prefix}_Card`).classList.add('border-gray-300', 'opacity-70');
+                    // N/A の表示項目も新しい項目に合わせる
+                    document.getElementById(`${prefix}_Pills`).textContent = '-';
+                    document.getElementById(`${prefix}_Days`).textContent = 'N/A';
+                    document.getElementById(`${prefix}_WasteDays`).textContent = '-';
+                    document.getElementById(`${prefix}_Dose`).textContent = '-';
+                    document.getElementById(`${prefix}_Error`).textContent = '-';
+                    document.getElementById(`${prefix}_Score`).textContent = '-';
+                } else {
+                    document.getElementById(`${prefix}_Card`).classList.remove('border-gray-300', 'opacity-70');
+                    // 処方日数 (D_required) を使って廃棄日数を計算
+                    const wasteDays = result.D_trial - D_required;
 
-                // 処方日数 (D_required) を使って廃棄日数を計算
-                const wasteDays = result.D_trial - D_required;
-
-                // 新しい項目に合わせて表示を更新
-                document.getElementById(`${prefix}_Pills`).textContent = `${result.T_adjusted.toFixed(2)}錠`; // 粉砕錠数 (T_adjusted)
-                document.getElementById(`${prefix}_Days`).textContent = `${result.D_trial}日`; // 分包日数 (D_trial)
-                document.getElementById(`${prefix}_WasteDays`).textContent = `${wasteDays}日`; // 廃棄日数
-                document.getElementById(`${prefix}_Dose`).textContent = `${result.P_adjusted.toFixed(3)}錠`; // 1包当たりの錠数 (P_adjusted)
-                document.getElementById(`${prefix}_Error`).textContent = `${result.E_percent.toFixed(2)}%`; // 誤差
-                document.getElementById(`${prefix}_Score`).textContent = result.Score.toFixed(2); // 評価値
+                    // 新しい項目に合わせて表示を更新
+                    document.getElementById(`${prefix}_Pills`).textContent = `${result.T_adjusted.toFixed(2)}錠`; // 粉砕錠数 (T_adjusted)
+                    document.getElementById(`${prefix}_Days`).textContent = `${result.D_trial}日`; // 分包日数 (D_trial)
+                    document.getElementById(`${prefix}_WasteDays`).textContent = `${wasteDays}日`; // 廃棄日数
+                    document.getElementById(`${prefix}_Dose`).textContent = `${result.P_adjusted.toFixed(3)}錠`; // 1包当たりの錠数 (P_adjusted)
+                    document.getElementById(`${prefix}_Error`).textContent = `${result.E_percent.toFixed(2)}%`; // 誤差
+                    document.getElementById(`${prefix}_Score`).textContent = result.Score.toFixed(2); // 評価値
+                }
             }
         });
     </script>
