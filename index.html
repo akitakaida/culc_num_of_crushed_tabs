@@ -153,13 +153,13 @@
             <div class="input-group col-span-2 md:col-span-2">
                 <label for="pillsPerDose">1包あたりの錠数</label>
                 <!-- 1包あたりの錠数デフォルト値を 0.2 に変更 -->
-                <input type="number" id="pillsPerDose" step="0.01" min="0.01" required placeholder="例: 0.2" value="0.2">
+                <input type="number" id="pillsPerDose" step="0.01" min="0.01" required placeholder="例: 0.1">
             </div>
             <div class="input-group col-span-2 md:col-span-1">
                 <!-- ラベルを「処方日数」に変更 -->
                 <label for="requiredDays">処方日数</label>
                 <!-- デフォルト値を 28 に変更 -->
-                <input type="number" id="requiredDays" step="1" min="1" required placeholder="例: 28" value="28">
+                <input type="number" id="requiredDays" step="1" min="1" required placeholder="例: 28">
             </div>
 
             <!-- 詳細設定トグルボタン -->
@@ -528,5 +528,6 @@
         });
     </script>
 </body>
+
 
 </html>
