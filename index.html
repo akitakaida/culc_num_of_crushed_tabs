@@ -412,7 +412,8 @@
                         P_adjusted: P_adjusted,
                         E_percent: E_percent,
                         Score: Score,
-                        isWithinTolerance: isWithinTolerance
+                        isWithinTolerance: isWithinTolerance,
+                        T_waste: T_adjusted - P_target * D_required
                     };
 
                     results.push(result);
@@ -520,7 +521,7 @@
                     // 新しい項目に合わせて表示を更新
                     document.getElementById(`${prefix}_Pills`).textContent = `${result.T_adjusted.toFixed(2)}錠`; // 粉砕錠数 (T_adjusted)
                     document.getElementById(`${prefix}_Days`).textContent = `${result.D_trial}日`; // 分包日数 (D_trial)
-                    document.getElementById(`${prefix}_WasteDays`).textContent = `${wasteDays}日(計${result.T_adjusted - P_target * D_required})`; // 廃棄日数
+                    document.getElementById(`${prefix}_WasteDays`).textContent = `${wasteDays}日(計${result.T_waste.toFixed(2)})`; // 廃棄日数
                     document.getElementById(`${prefix}_Dose`).textContent = `${result.P_adjusted.toFixed(3)}錠`; // 1包当たり錠数 (P_adjusted)
                     document.getElementById(`${prefix}_Error`).textContent = `${result.E_percent.toFixed(2)}%`; // 誤差
                     document.getElementById(`${prefix}_Score`).textContent = result.Score.toFixed(2); // 評価値
