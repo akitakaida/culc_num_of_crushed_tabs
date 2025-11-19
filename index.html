@@ -224,8 +224,9 @@
                     <div class="space-y-1 text-gray-700">
                         <p>粉砕錠数: <span id="optScore_Pills" class="font-extrabold text-lg"></span></p>
                         <p>分包日数: <span id="optScore_Days" class="font-extrabold text-lg"></span></p>
-                        <p>廃棄日数: <span id="optScore_WasteDays" class="font-extrabold"></span></p>
                         <p>1包当たりの錠数: <span id="optScore_Dose" class="font-extrabold"></span></p>
+                        <p>廃棄日数: <span id="optScore_WasteDays" class="font-extrabold"></span></p>
+                        <p>廃棄錠数: <span id="optScore_WasteTabs" class="font-extrabold"></span></p>
                         <p>誤差: <span id="optScore_Error" class="font-extrabold"></span></p>
                         <p>評価値: <span id="optScore_Score" class="font-extrabold"></span></p>
                     </div>
@@ -239,8 +240,9 @@
                     <div class="space-y-1 text-gray-700">
                         <p>粉砕錠数: <span id="optErr_Pills" class="font-extrabold text-lg"></span></p>
                         <p>分包日数: <span id="optErr_Days" class="font-extrabold text-lg"></span></p>
-                        <p>廃棄日数: <span id="optErr_WasteDays" class="font-extrabold"></span></p>
                         <p>1包当たりの錠数: <span id="optErr_Dose" class="font-extrabold"></span></p>
+                        <p>廃棄日数: <span id="optErr_WasteDays" class="font-extrabold"></span></p>
+                        <p>廃棄錠数: <span id="optErr_WasteTabs" class="font-extrabold"></span></p>
                         <p>誤差: <span id="optErr_Error" class="font-extrabold"></span></p>
                         <p>評価値: <span id="optErr_Score" class="font-extrabold"></span></p>
                     </div>
@@ -254,8 +256,9 @@
                     <div class="space-y-1 text-gray-700">
                         <p>粉砕錠数: <span id="optDay_Pills" class="font-extrabold text-lg"></span></p>
                         <p>分包日数: <span id="optDay_Days" class="font-extrabold text-lg"></span></p>
-                        <p>廃棄日数: <span id="optDay_WasteDays" class="font-extrabold"></span></p>
                         <p>1包当たりの錠数: <span id="optDay_Dose" class="font-extrabold"></span></p>
+                        <p>廃棄日数: <span id="optDay_WasteDays" class="font-extrabold"></span></p>
+                        <p>廃棄錠数: <span id="optDay_WasteTabs" class="font-extrabold"></span></p>
                         <p>誤差: <span id="optDay_Error" class="font-extrabold"></span></p>
                         <p>評価値: <span id="optDay_Score" class="font-extrabold"></span></p>
                     </div>
@@ -510,6 +513,7 @@
                     document.getElementById(`${prefix}_Pills`).textContent = '-';
                     document.getElementById(`${prefix}_Days`).textContent = 'N/A';
                     document.getElementById(`${prefix}_WasteDays`).textContent = '-';
+                    document.getElementById(`${prefix}_WasteTabs`).textContent = '-';
                     document.getElementById(`${prefix}_Dose`).textContent = '-';
                     document.getElementById(`${prefix}_Error`).textContent = '-';
                     document.getElementById(`${prefix}_Score`).textContent = '-';
@@ -517,11 +521,13 @@
                     document.getElementById(`${prefix}_Card`).classList.remove('border-gray-300', 'opacity-70');
                     // 処方日数 (D_required) を使って廃棄日数を計算
                     const wasteDays = result.D_trial - D_required;
+                    const wasteTabsPerDay = result.T_waste / wasteDays
 
                     // 新しい項目に合わせて表示を更新
                     document.getElementById(`${prefix}_Pills`).textContent = `${result.T_adjusted.toFixed(2)}錠`; // 粉砕錠数 (T_adjusted)
                     document.getElementById(`${prefix}_Days`).textContent = `${result.D_trial}日`; // 分包日数 (D_trial)
-                    document.getElementById(`${prefix}_WasteDays`).textContent = `${wasteDays}日(計${result.T_waste.toFixed(2)})`; // 廃棄日数
+                    document.getElementById(`${prefix}_WasteDays`).textContent = `${wasteDays}日`; // 廃棄日数
+                    document.getElementById(`${prefix}_WasteTabs`).textContent = `計${result.T_waste.toFixed(2)}錠(${wasteTabsPerDay.toFixed(3)}錠×${wasteDays}日)`;
                     document.getElementById(`${prefix}_Dose`).textContent = `${result.P_adjusted.toFixed(3)}錠`; // 1包当たり錠数 (P_adjusted)
                     document.getElementById(`${prefix}_Error`).textContent = `${result.E_percent.toFixed(2)}%`; // 誤差
                     document.getElementById(`${prefix}_Score`).textContent = result.Score.toFixed(2); // 評価値
